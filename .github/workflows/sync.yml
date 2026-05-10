@@ -1,5 +1,4 @@
-env:
-  PIXIV_REFname: Update PID Shards
+name: Update PID Shards
 
 on:
   schedule:
@@ -15,16 +14,29 @@ jobs:
       - name: Install gallery-dl
         run: pip install gallery-dl
 
-      - name: Fetch artist index
+      - name: Create gallery-dl config with token
         env:
           PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+        run: |
+          mkdir -p ~/.config/gallery-dl
+          cat > ~/.config/gallery-dl/config.json << 'EOF'
+          {
+              "extractor": {
+                  "pixiv": {
+                      "refresh-token": "$PIXIV_REFRESH_TOKEN"
+                  }
+              }
+          }
+          EOF
+          sed -i "s|\$PIXIV_REFRESH_TOKEN|$PIXIV_REFRESH_TOKEN|g" ~/.config/gallery-dl/config.json
+
+      - name: Fetch artist index
         run: |
           gallery-dl --get-urls "https://www.pixiv.net/users/100193539/following" \
             | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
 
       - name: Fetch works per artist and build reverse index
-        env:
-          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+        timeout-minutes: 30
         run: |
           mkdir -p data/artists data/pid
           while read artist_id; do
@@ -48,4 +60,4 @@ jobs:
           git config user.email "actions@github.com"
           git add artists_index.txt data/
           git diff --staged --quiet || git commit -m "Update PID shards $(date -u +'%F %T')"
-          git pushRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          git push

@@ -1,4 +1,5 @@
-name: Update PID Shards
+env:
+  PIXIV_REFname: Update PID Shards
 
 on:
   schedule:
@@ -16,14 +17,14 @@ jobs:
 
       - name: Fetch artist index
         env:
-          GALLERY_DL_OAUTH_PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
         run: |
           gallery-dl --get-urls "https://www.pixiv.net/users/100193539/following" \
             | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
 
       - name: Fetch works per artist and build reverse index
         env:
-          GALLERY_DL_OAUTH_PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
         run: |
           mkdir -p data/artists data/pid
           while read artist_id; do
@@ -47,4 +48,4 @@ jobs:
           git config user.email "actions@github.com"
           git add artists_index.txt data/
           git diff --staged --quiet || git commit -m "Update PID shards $(date -u +'%F %T')"
-          git push
+          git pushRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}

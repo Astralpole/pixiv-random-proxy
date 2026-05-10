@@ -17,9 +17,8 @@ jobs:
       - name: Fetch artist index
         env:
           GALLERY_DL_OAUTH_PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
-          PIXIV_USER_ID: ${{ secrets.PIXIV_USER_ID }}
         run: |
-          gallery-dl --get-urls "https://www.pixiv.net/users/$PIXIV_USER_ID/following" \
+          gallery-dl --get-urls "https://www.pixiv.net/users/100193539/following" \
             | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
 
       - name: Fetch works per artist and build reverse index

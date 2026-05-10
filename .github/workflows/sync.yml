@@ -16,34 +16,31 @@ jobs:
 
       - name: Fetch artist index
         env:
-          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          GALLERY_DL_OAUTH_PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
           PIXIV_USER_ID: ${{ secrets.PIXIV_USER_ID }}
         run: |
-          gallery-dl --oauth-token "$PIXIV_REFRESH_TOKEN" \
-            --get-urls "https://www.pixiv.net/users/$PIXIV_USER_ID/following" \
+          gallery-dl --get-urls "https://www.pixiv.net/users/$PIXIV_USER_ID/following" \
             | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
 
       - name: Fetch works per artist and build reverse index
         env:
-          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          GALLERY_DL_OAUTH_PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
         run: |
           mkdir -p data/artists data/pid
           while read artist_id; do
             [ -z "$artist_id" ] && continue
             echo ">> Processing artist $artist_id"
-            gallery-dl --oauth-token "$PIXIV_REFRESH_TOKEN" \
-              --get-urls --no-download \
+            gallery-dl --get-urls --no-download \
               "https://www.pixiv.net/users/$artist_id" \
-              | grep -oP '/(\\d+)_p\\d+' | cut -d/ -f2 | sort -u \
+              | grep -oP '/(\d+)_p\d+' | cut -d/ -f2 | sort -u \
               > "data/artists/$artist_id.json"
-            # 生成反向索引
             python3 scripts/build_pid_index.py "data/artists/$artist_id.json" "data/pid"
             sleep 3
           done < artists_index.txt
 
       - name: Generate pid index list
         run: |
-          ls data/pid/ | sed 's/\\.json$//' > data/pid_index.txt
+          ls data/pid/ | sed 's/\.json$//' > data/pid_index.txt
 
       - name: Commit and push
         run: |

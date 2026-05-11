@@ -2,7 +2,7 @@ name: Update PID Shards
 
 on:
   schedule:
-    - cron: '30 16 * * *'
+    - cron: '30 13 * * *'  # 北京时间 21:30
   workflow_dispatch:
 
 jobs:
@@ -15,20 +15,17 @@ jobs:
         run: pip install gallery-dl
 
       - name: Create gallery-dl config with token
-        env:
-          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
         run: |
           mkdir -p ~/.config/gallery-dl
           cat > ~/.config/gallery-dl/config.json << 'EOF'
           {
               "extractor": {
                   "pixiv": {
-                      "refresh-token": "$PIXIV_REFRESH_TOKEN"
+                      "refresh-token": "${{ secrets.PIXIV_REFRESH_TOKEN }}"
                   }
               }
           }
           EOF
-          sed -i "s|\$PIXIV_REFRESH_TOKEN|$PIXIV_REFRESH_TOKEN|g" ~/.config/gallery-dl/config.json
 
       - name: Fetch artist index
         run: |
@@ -36,14 +33,13 @@ jobs:
             | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
 
       - name: Fetch works per artist and build reverse index
-        timeout-minutes: 30
         run: |
           mkdir -p data/artists data/pid
           while read artist_id; do
             [ -z "$artist_id" ] && continue
             echo ">> Processing artist $artist_id"
             gallery-dl --get-urls --no-download \
-              "https://www.pixiv.net/users/$artist_id" \
+              "https://www.pixiv.net/users/$artist_id/illustrations" \
               | grep -oP '/(\d+)_p\d+' | cut -d/ -f2 | sort -u \
               > "data/artists/$artist_id.json"
             python3 scripts/build_pid_index.py "data/artists/$artist_id.json" "data/pid"

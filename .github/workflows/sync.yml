@@ -22,7 +22,9 @@ jobs:
               "extractor": {
                   "pixiv": {
                       "refresh-token": "${{ secrets.PIXIV_REFRESH_TOKEN }}",
-                      "cookies": "${{ secrets.PIXIV_COOKIE }}"
+                      "cookies": {
+                          "PHPSESSID": "${{ secrets.PIXIV_COOKIE }}"
+                      }
                   }
               }
           }

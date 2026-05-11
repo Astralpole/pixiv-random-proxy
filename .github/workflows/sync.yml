@@ -14,14 +14,15 @@ jobs:
       - name: Install gallery-dl
         run: pip install gallery-dl
 
-      - name: Create gallery-dl config with token
+      - name: Create gallery-dl config with token and cookie
         run: |
           mkdir -p ~/.config/gallery-dl
           cat > ~/.config/gallery-dl/config.json << 'EOF'
           {
               "extractor": {
                   "pixiv": {
-                      "refresh-token": "${{ secrets.PIXIV_REFRESH_TOKEN }}"
+                      "refresh-token": "${{ secrets.PIXIV_REFRESH_TOKEN }}",
+                      "cookies": "${{ secrets.PIXIV_COOKIE }}"
                   }
               }
           }

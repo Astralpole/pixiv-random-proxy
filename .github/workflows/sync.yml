@@ -2,7 +2,7 @@ name: Update PID Shards with Date Maps
 
 on:
   schedule:
-    - cron: '30 13 * * *'   # 北京时间 21:30
+    - cron: '30 13 * * *'
   workflow_dispatch:
 
 jobs:
@@ -75,7 +75,7 @@ with open('data/pid_date_map/$artist_id.json', 'w') as out:
       - name: Generate pid index
         run: ls data/pid/ | sed 's/\.json$//' > data/pid_index.txt
 
-      - name: Build global pid_date_map_all.json
+      - name: Build global all_pids_map.json
         run: |
           python3 -c "
 import json, os

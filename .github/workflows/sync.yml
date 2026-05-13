@@ -1,4 +1,4 @@
-name: Update PID Shards with Date Maps
+name: Update PID Shards and Date Maps
 
 on:
   schedule:
@@ -14,84 +14,17 @@ jobs:
       - name: Install gallery-dl
         run: pip install gallery-dl
 
-      - name: Create gallery-dl config
-        run: |
-          mkdir -p ~/.config/gallery-dl
-          cat > ~/.config/gallery-dl/config.json << 'EOF'
-          {
-              "extractor": {
-                  "pixiv": {
-                      "refresh-token": "${{ secrets.PIXIV_REFRESH_TOKEN }}",
-                      "cookies": {
-                          "PHPSESSID": "${{ secrets.PIXIV_COOKIE }}"
-                      }
-                  }
-              }
-          }
-          EOF
-
-      - name: Fetch artist index
-        run: |
-          gallery-dl --get-urls "https://www.pixiv.net/users/100193539/following" \
-            | grep -oP 'users/\K\d+' | sort -u > artists_index.txt
-
-      - name: Fetch works and build maps
-        run: |
-          mkdir -p data/artists data/pid data/pid_date_map
-          while read artist_id; do
-            [ -z "$artist_id" ] && continue
-            echo ">> Processing artist $artist_id"
-
-            tmpdir=$(mktemp -d)
-            gallery-dl --get-urls --no-download --write-info-json -d "$tmpdir" \
-              "https://www.pixiv.net/users/$artist_id/illustrations" \
-              | grep -oP '/(\d+)_p\d+' | cut -d/ -f2 | sort -u \
-              > "data/artists/$artist_id.json"
-
-            python3 -c "
-import os, json
-pid_date = {}
-for root, dirs, files in os.walk('$tmpdir'):
-    for f in files:
-        if f.endswith('.json'):
-            with open(os.path.join(root, f)) as fp:
-                try:
-                    data = json.load(fp)
-                except:
-                    continue
-                pid = str(data.get('illust_id', ''))
-                date_url = data.get('date_url', '')
-                if pid and date_url:
-                    pid_date[pid] = date_url
-with open('data/pid_date_map/$artist_id.json', 'w') as out:
-    json.dump(pid_date, out)
-"
-            rm -rf "$tmpdir"
-
-            python3 scripts/build_pid_index.py "data/artists/$artist_id.json" "data/pid"
-            sleep $(( (RANDOM % 4) + 6 ))
-          done < artists_index.txt
-
-      - name: Generate pid index
-        run: ls data/pid/ | sed 's/\.json$//' > data/pid_index.txt
-
-      - name: Build global all_pids_map.json
-        run: |
-          python3 -c "
-import json, os
-all_map = {}
-for f in os.listdir('data/pid_date_map'):
-    if f.endswith('.json'):
-        with open(os.path.join('data/pid_date_map', f)) as fp:
-            all_map.update(json.load(fp))
-with open('data/all_pids_map.json', 'w') as out:
-    json.dump(all_map, out)
-"
+      - name: Run full update script
+        env:
+          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          PIXIV_COOKIE: ${{ secrets.PIXIV_COOKIE }}
+          PIXIV_USER_ID: ${{ secrets.PIXIV_USER_ID }}
+        run: python3 scripts/build_all.py
 
       - name: Commit and push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add artists_index.txt data/
+          git add artists_index.txt data/ scripts/
           git diff --staged --quiet || git commit -m "Update shards $(date -u +'%F %T')"
           git push

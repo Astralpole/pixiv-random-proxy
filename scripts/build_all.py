@@ -39,21 +39,20 @@ print(f"Found {len(artist_ids)} artists")
 
 os.makedirs('data/artists', exist_ok=True)
 os.makedirs('data/pid', exist_ok=True)
-os.makedirs('data/pid_date_map', exist_ok=True)
 
-all_date_map = {}
 total = len(artist_ids)
+total_works = 0
 timeout_artists = []
 error_artists = []
-total_works = 0
 
 for idx, aid in enumerate(artist_ids, 1):
     print(f"[{idx}/{total}] Processing artist {aid} ...", end=' ', flush=True)
     tmpdir = tempfile.mkdtemp()
     
     try:
+        # 只用 --write-info-json，不再用 --get-urls
         proc = subprocess.run(
-            ['gallery-dl', '--get-urls', '--no-download', '--write-info-json', '-d', tmpdir,
+            ['gallery-dl', '--write-info-json', '--no-download', '-d', tmpdir,
              f'https://www.pixiv.net/users/{aid}/illustrations'],
             capture_output=True, text=True, timeout=120
         )
@@ -69,7 +68,6 @@ for idx, aid in enumerate(artist_ids, 1):
         continue
 
     pids_set = set()
-    pid_date = {}
     pid_pages = defaultdict(list)
 
     for root, dirs, files in os.walk(tmpdir):
@@ -82,15 +80,19 @@ for idx, aid in enumerate(artist_ids, 1):
                     pid = str(data.get('illust_id', ''))
                     if not pid:
                         continue
-                    tags = [t.get('tag', '') for t in data.get('tags', {}).get('tags', [])]
+                    # 过滤 R-18
+                    tags = []
+                    if 'tags' in data:
+                        tags_data = data['tags']
+                        if isinstance(tags_data, dict) and 'tags' in tags_data:
+                            tags = [t.get('tag', '') for t in tags_data['tags']]
+                        elif isinstance(tags_data, list):
+                            tags = [t.get('tag', '') if isinstance(t, dict) else str(t) for t in tags_data]
                     if 'R-18' in tags or 'R-18G' in tags:
                         continue
                     page_count = data.get('page_count', 1)
                     for p in range(page_count):
                         pids_set.add(f"{pid}_p{p}")
-                    date_url = data.get('date_url', '')
-                    if date_url:
-                        pid_date[pid] = date_url
                 except:
                     pass
 
@@ -100,11 +102,7 @@ for idx, aid in enumerate(artist_ids, 1):
     else:
         open(f'data/artists/{aid}.json', 'w').close()
 
-    if pid_date:
-        with open(f'data/pid_date_map/{aid}.json', 'w') as f:
-            json.dump(pid_date, f)
-        all_date_map.update(pid_date)
-
+    # 构建反向索引
     for pp in pids_set:
         if '_' in pp:
             pid, page = pp.split('_', 1)
@@ -118,9 +116,7 @@ for idx, aid in enumerate(artist_ids, 1):
     print(f"OK ({len(pids_set)} works)")
     time.sleep(random.randint(5, 8))
 
-with open('data/all_pids_map.json', 'w') as f:
-    json.dump(all_date_map, f)
-
+# 生成 pid 索引
 pid_files = sorted(os.listdir('data/pid'))
 with open('data/pid_index.txt', 'w') as f:
     for pf in pid_files:
@@ -130,7 +126,6 @@ with open('data/pid_index.txt', 'w') as f:
 print(f"\n{'='*50}")
 print(f"Done! Total artists: {total}")
 print(f"Total works (non R-18): {total_works}")
-print(f"Date map entries: {len(all_date_map)}")
 if timeout_artists:
     print(f"Timeout artists ({len(timeout_artists)}): {', '.join(timeout_artists[:10])}...")
 if error_artists:

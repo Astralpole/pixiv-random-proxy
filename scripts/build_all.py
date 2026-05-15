@@ -26,7 +26,7 @@ def api_get(url, params=None):
             time.sleep(5)
     return None
 
-# ---------- 1. 获取关注列表 ----------
+# ---------- 获取关注列表 ----------
 print("Fetching following artists...")
 artist_ids = []
 offset = 0
@@ -49,7 +49,7 @@ print(f"Found {len(artist_ids)} artists")
 with open('artists_index.txt', 'w') as f:
     f.write('\n'.join(artist_ids))
 
-# ---------- 2. 遍历画师，主路径 API，降级路径 gallery-dl ----------
+# ---------- 遍历画师 ----------
 os.makedirs('data/artists', exist_ok=True)
 os.makedirs('data/pid', exist_ok=True)
 
@@ -66,8 +66,20 @@ for idx, aid in enumerate(artist_ids, 1):
     if profile and 'body' in profile:
         pids = set()
         for key in ('illusts', 'manga'):
-            if key in profile['body']:
-                pids.update(profile['body'][key].keys())
+            items = profile['body'].get(key)
+            if not items:
+                continue
+            # 兼容字典或列表
+            if isinstance(items, dict):
+                pids.update(items.keys())
+            elif isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict):
+                        pid = str(item.get('id', ''))
+                        if pid:
+                            pids.add(pid)
+                    elif isinstance(item, str):
+                        pids.add(item)
         if pids:
             with open(f'data/artists/{aid}.json', 'w') as f:
                 f.write('\n'.join(sorted(str(p) for p in pids)))
@@ -143,7 +155,7 @@ for idx, aid in enumerate(artist_ids, 1):
 
     time.sleep(random.randint(5, 8))
 
-# ---------- 3. 生成 pid 索引 ----------
+# ---------- 生成 pid 索引 ----------
 pid_files = sorted(os.listdir('data/pid'))
 with open('data/pid_index.txt', 'w') as f:
     for pf in pid_files:

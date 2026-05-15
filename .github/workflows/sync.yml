@@ -1,20 +1,21 @@
-name: Update PID Shards and Date Maps
+name: Update PID Shards
 
 on:
   schedule:
-    - cron: '30 13 * * *'
+    - cron: '30 13 * * *'   # 北京时间 21:30
   workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install gallery-dl
-        run: pip install gallery-dl
+      - name: Install dependencies
+        run: pip install requests gallery-dl
 
-      - name: Run full update script
+      - name: Run sync script
         env:
           PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
           PIXIV_COOKIE: ${{ secrets.PIXIV_COOKIE }}
@@ -26,5 +27,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add artists_index.txt data/ scripts/
-          git diff --staged --quiet || git commit -m "Update shards $(date -u +'%F %T')"
+          git diff --staged --quiet || git commit -m "Update PID shards $(date -u +'%F %T')"
           git push
